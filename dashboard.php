@@ -187,7 +187,6 @@
       </div>
 
       <!-- Team Management -->
-      <!-- Sezione creazione e gestione Teams - visibile solo agli admin e manager -->      
       <div class="col-lg-3 col-md-6" id="teams-for-admins" style="display: none;">
         <div class="card border-0 shadow-sm text-center h-100" onclick="window.location.href='team.php'">
           <div class="card-body d-flex flex-column justify-content-center p-4">
@@ -202,73 +201,89 @@
                 Accedi
               </span>
             </div>
-
         </div>
       </div>
     </div>
+    </div>
+    
     <div class="row mt-5">
+      <!-- Issue Tracker -->
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm text-center h-100" onclick="window.location.href='issues.php'">
+          <div class="card-body d-flex flex-column justify-content-center p-4">
+            <div class="card-icon text-danger">
+              <i class="fas fa-bug"></i>
+            </div>
+            <h5 class="card-title fw-bold text-danger mb-3">Issue Tracker</h5>
+            <p class="card-text text-muted">Gestisci bug, blocchi, richieste di miglioramento. Tieni traccia delle risoluzioni.</p>
+            <div class="mt-auto">
+              <span class="badge bg-danger px-3 py-2">
+                <i class="fas fa-arrow-right me-1"></i>
+                Apri
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <!-- Documenti -->
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm text-center h-100" onclick="window.location.href='documents.php'">
+          <div class="card-body d-flex flex-column justify-content-center p-4">
+            <div class="card-icon text-secondary">
+              <i class="fas fa-folder-open"></i>
+            </div>
+            <h5 class="card-title fw-bold text-secondary mb-3">Documenti</h5>
+            <p class="card-text text-muted">Condividi file, gestisci versioni e documentazione di progetto in modo semplice.</p>
+            <div class="mt-auto">
+              <span class="badge bg-secondary px-3 py-2">
+                <i class="fas fa-arrow-right me-1"></i>
+                Apri
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <!-- Calendario -->
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm text-center h-100" onclick="window.location.href='calendar.php'">
+          <div class="card-body d-flex flex-column justify-content-center p-4">
+            <div class="card-icon text-info">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <h5 class="card-title fw-bold text-info mb-3">Calendario</h5>
+            <p class="card-text text-muted">Visualizza riunioni, scadenze e attività del progetto in un calendario condiviso.</p>
+            <div class="mt-auto">
+              <span class="badge bg-info px-3 py-2">
+                <i class="fas fa-arrow-right me-1"></i>
+                Apri
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-<!-- Issue Tracker (colore danger) -->
-<div class="col-lg-3 col-md-6">
-<div class="card border-0 shadow-sm text-center h-100" onclick="window.location.href='issues.php'">
-<div class="card-body d-flex flex-column justify-content-center p-4">
-<div class="card-icon text-danger">
-<i class="fas fa-bug"></i>
-</div>
-<h5 class="card-title fw-bold text-danger mb-3">Issue Tracker</h5>
-<p class="card-text text-muted">Gestisci bug, blocchi, richieste di miglioramento. Tieni traccia delle risoluzioni.</p>
-<div class="mt-auto">
-<span class="badge bg-danger px-3 py-2">
-<i class="fas fa-arrow-right me-1"></i>
-Apri
-</span>
-</div>
-</div>
-</div>
-</div>
-
-<!-- Documenti (colore secondary) -->
-<div class="col-lg-3 col-md-6">
-<div class="card border-0 shadow-sm text-center h-100" onclick="window.location.href='documents.php'">
-<div class="card-body d-flex flex-column justify-content-center p-4">
-<div class="card-icon text-secondary">
-<i class="fas fa-folder-open"></i>
-</div>
-<h5 class="card-title fw-bold text-secondary mb-3">Documenti</h5>
-<p class="card-text text-muted">Condividi file, gestisci versioni e documentazione di progetto in modo semplice.</p>
-<div class="mt-auto">
-<span class="badge bg-secondary px-3 py-2">
-<i class="fas fa-arrow-right me-1"></i>
-Apri
-</span>
-</div>
-</div>
-</div>
-</div>
-
-<!-- Calendario (colore info) -->
-<div class="col-lg-3 col-md-6">
-<div class="card border-0 shadow-sm text-center h-100" onclick="window.location.href='calendar.php'">
-<div class="card-body d-flex flex-column justify-content-center p-4">
-<div class="card-icon text-info">
-<i class="fas fa-calendar-alt"></i>
-</div>
-<h5 class="card-title fw-bold text-info mb-3">Calendario</h5>
-<p class="card-text text-muted">Visualizza riunioni, scadenze e attività del progetto in un calendario condiviso.</p>
-<div class="mt-auto">
-<span class="badge bg-info px-3 py-2">
-<i class="fas fa-arrow-right me-1"></i>
-Apri
-</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-           
-          
+      <!-- Impostazioni (solo Admin) -->
+      <div class="col-lg-3 col-md-6" id="settings-for-admins" style="display: none;">
+        <div class="card border-0 shadow-sm text-center h-100" onclick="window.location.href='settings.php'" style="cursor: pointer;">
+          <div class="card-body d-flex flex-column justify-content-center p-4">
+            <div class="card-icon text-dark">
+              <i class="fas fa-cog"></i>
+            </div>
+            <h5 class="card-title fw-bold text-dark mb-3">Impostazioni</h5>
+            <p class="card-text text-muted">Configura i parametri del sistema e visualizza i log di sistema.</p>
+            <div class="mt-auto">
+              <span class="badge bg-dark px-3 py-2">
+                <i class="fas fa-arrow-right me-1"></i>
+                Apri
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+               
     <!-- Stats Section -->
     <div class="row mt-5">
       <div class="col-12">
@@ -325,208 +340,88 @@ Apri
       </div>
     </div>
   </div>
-        <script>
-// Funzione per aggiornare le informazioni utente nell'header
-function updateUserInfoInHeader() {
-    const currentUser = getCurrentUser();
-    const userInfoDiv = document.getElementById('user-info');
-    const userNameSpan = document.getElementById('user-name');
-    const userLevelBadge = document.getElementById('user-level-badge');
-    const userAvatar = document.getElementById('user-avatar');
-    
-    if (currentUser) {
-        // Mostra la sezione info utente
-        userInfoDiv.style.display = 'flex';
-        
-        // Imposta il nome
-        userNameSpan.textContent = currentUser.fullName || currentUser.username;
-        
-        // Imposta il badge del livello con colori appropriati
-        userLevelBadge.textContent = currentUser.level.toUpperCase();
-        userLevelBadge.className = 'badge ' + getLevelBadgeClass(currentUser.level);
-        
-        // Imposta l'avatar con iniziali
-        const initials = getInitials(currentUser.fullName || currentUser.username);
-        userAvatar.textContent = initials;
-        userAvatar.style.backgroundColor = getAvatarColor(currentUser.level);
-        
-    } else {
-        // Nascondi la sezione se non c'è utente
-        userInfoDiv.style.display = 'none';
-    }
-}
 
-// Funzione per ottenere la classe CSS del badge in base al livello
-function getLevelBadgeClass(level) {
-    switch(level) {
-        case 'admin':
-            return 'bg-danger text-white'; // Rosso per admin
-        case 'manager':
-            return 'bg-warning text-dark'; // Giallo per manager
-        case 'user':
-        default:
-            return 'bg-secondary text-white'; // Grigio per user
-    }
-}
-
-// Funzione per ottenere il colore dell'avatar in base al livello
-function getAvatarColor(level) {
-    switch(level) {
-        case 'admin':
-            return '#dc3545'; // Rosso per admin
-        case 'manager':
-            return '#ffc107'; // Giallo per manager
-        case 'user':
-        default:
-            return '#007bff'; // Blu per user
-    }
-}
-
-// Funzione per estrarre le iniziali dal nome
-function getInitials(fullName) {
-    if (!fullName) return 'U';
-    
-    const names = fullName.trim().split(' ');
-    if (names.length === 1) {
-        return names[0].charAt(0).toUpperCase();
-    }
-    
-    return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-}
-
-// Funzione helper per ottenere l'utente corrente (se non già presente)
-function getCurrentUser() {
-    try {
-        const userData = localStorage.getItem('currentUser');
-        return userData ? JSON.parse(userData) : null;
-    } catch (error) {
-        console.error('Errore nel parsing dei dati utente:', error);
-        return null;
-    }
-}
+  <script src="auth.js"></script>
+  <script>
+    // Funzione per controllare i permessi utente
+    function checkUserPermissions() {
+        const currentUser = getCurrentUser();
+        
+        if (!currentUser) {
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        const adminTeamsSection = document.getElementById('teams-for-admins');
+        const settingsSection = document.getElementById('settings-for-admins');
+        const numberOfTools = document.getElementById('numberoftools-admin');
                 
-// Funzione per controllare i permessi utente
-function checkUserPermissions() {
-    const currentUser = getCurrentUser();
-    
-    if (!currentUser) {
-        // Se non c'è utente loggato, reindirizza al login
-        window.location.href = 'index.html';
-        return;
+        if (isAdmin()) {
+            adminTeamsSection.style.display = 'block';
+            settingsSection.style.display = 'block';
+            numberOfTools.textContent = '8';
+        } else if (isManager()) {
+            adminTeamsSection.style.display = 'block';
+            settingsSection.style.display = 'none';
+            numberOfTools.textContent = '7';
+        } else {
+            adminTeamsSection.style.display = 'none';
+            settingsSection.style.display = 'none';
+            numberOfTools.textContent = '6';
+        }
     }
-    
-    const adminTeamsSection = document.getElementById('teams-for-admins');
-     const numberOfTools = document.getElementById('numberoftools-admin');
+
+    // Funzione per aggiornare le informazioni utente nell'header della dashboard
+    function updateDashboardUserInfo() {
+        const currentUser = getCurrentUser();
+        const userInfoDiv = document.getElementById('user-info');
+        const mobileUserInfoDiv = document.getElementById('mobile-user-info');
+        const userNameSpan = document.getElementById('user-name');
+        const mobileUserNameSpan = document.getElementById('mobile-user-name');
+        const userLevelBadge = document.getElementById('user-level-badge');
+        const mobileUserLevelBadge = document.getElementById('mobile-user-level');
+        const userAvatar = document.getElementById('user-avatar');
+        
+        if (currentUser) {
+            if (userInfoDiv) userInfoDiv.style.display = 'flex';
+            if (mobileUserInfoDiv) mobileUserInfoDiv.style.display = 'block';
             
-    
-    if (currentUser.level === 'admin' || currentUser.level === 'manager') {
-        // Mostra sezione admin
-        adminTeamsSection.style.display = 'block';
-        numberOfTools.textContent = '7';
+            if (userNameSpan) userNameSpan.textContent = currentUser.fullName || currentUser.username;
+            if (mobileUserNameSpan) mobileUserNameSpan.textContent = currentUser.fullName || currentUser.username;
             
-    } else {
-        // Nascondi sezione admin e mostra messaggio (opzionale)
-        adminTeamsSection.style.display = 'none';
-        numberOfTools.textContent = '6';
-         
-    }
-}
-
-
-// Funzione per verificare se l'utente è admin
-function isAdmin() {
-    const currentUser = getCurrentUser();
-    return currentUser && currentUser.level === 'admin';
-}
-
-// Funzione per verificare se l'utente è admin o manager
-function isAdminOrManager() {
-    const currentUser = getCurrentUser();
-    return currentUser && (currentUser.level === 'admin' || currentUser.level === 'manager');
-}
-
-// Esegui il controllo permessi al caricamento della pagina
-document.addEventListener('DOMContentLoaded', function() {
-    checkUserPermissions();
-});
-
-// Se hai già un event listener per il caricamento, aggiungi la chiamata lì
-window.addEventListener('load', function() {
-    checkUserPermissions();
-});        
-        
-                
-                
-
-// Funzione per aggiornare le informazioni utente nell'header della dashboard
-function updateDashboardUserInfo() {
-    const currentUser = getCurrentUser();
-    const userInfoDiv = document.getElementById('user-info');
-    const mobileUserInfoDiv = document.getElementById('mobile-user-info');
-    const userNameSpan = document.getElementById('user-name');
-    const mobileUserNameSpan = document.getElementById('mobile-user-name');
-    const userLevelBadge = document.getElementById('user-level-badge');
-    const mobileUserLevelBadge = document.getElementById('mobile-user-level');
-    const userAvatar = document.getElementById('user-avatar');
-    
-    if (currentUser) {
-        // Mostra le sezioni info utente
-        if (userInfoDiv) userInfoDiv.style.display = 'flex';
-        if (mobileUserInfoDiv) mobileUserInfoDiv.style.display = 'block';
-        
-        // Imposta il nome (desktop e mobile)
-        if (userNameSpan) userNameSpan.textContent = currentUser.fullName || currentUser.username;
-        if (mobileUserNameSpan) mobileUserNameSpan.textContent = currentUser.fullName || currentUser.username;
-        
-        // Imposta il badge del livello con colori appropriati
-        const levelText = currentUser.level.toUpperCase();
-        const badgeClass = getLevelBadgeClass(currentUser.level);
-        
-        if (userLevelBadge) {
-            userLevelBadge.textContent = levelText;
-            userLevelBadge.className = 'badge ' + badgeClass;
+            const levelText = currentUser.level.toUpperCase();
+            const badgeClass = getLevelBadgeClass(currentUser.level);
+            
+            if (userLevelBadge) {
+                userLevelBadge.textContent = levelText;
+                userLevelBadge.className = 'badge ' + badgeClass;
+            }
+            
+            if (mobileUserLevelBadge) {
+                mobileUserLevelBadge.textContent = levelText;
+                mobileUserLevelBadge.className = 'badge ' + badgeClass;
+            }
+            
+            if (userAvatar) {
+                userAvatar.textContent = getInitials(currentUser.fullName || currentUser.username);
+                userAvatar.style.backgroundColor = getAvatarColor(currentUser.level);
+            }
+        } else {
+            if (userInfoDiv) userInfoDiv.style.display = 'none';
+            if (mobileUserInfoDiv) mobileUserInfoDiv.style.display = 'none';
         }
-        
-        if (mobileUserLevelBadge) {
-            mobileUserLevelBadge.textContent = levelText;
-            mobileUserLevelBadge.className = 'badge ' + badgeClass;
-        }
-        
-        // Imposta l'avatar con iniziali (solo desktop)
-        if (userAvatar) {
-            const initials = getInitials(currentUser.fullName || currentUser.username);
-            userAvatar.textContent = initials;
-            userAvatar.style.backgroundColor = getAvatarColor(currentUser.level);
-        }
-        
-    } else {
-        // Nascondi le sezioni se non c'è utente
-        if (userInfoDiv) userInfoDiv.style.display = 'none';
-        if (mobileUserInfoDiv) mobileUserInfoDiv.style.display = 'none';
     }
-}
 
-// Aggiorna le informazioni utente al caricamento della pagina
-document.addEventListener('DOMContentLoaded', function() {
-    updateDashboardUserInfo();
-    if (typeof checkUserPermissions === 'function') {
-        checkUserPermissions(); // Se hai già questa funzione
-    }
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        updateDashboardUserInfo();
+        checkUserPermissions();
+    });
 
-// Se hai già un event listener per il caricamento, aggiungi la chiamata lì
-window.addEventListener('load', function() {
-    updateDashboardUserInfo();
-});                
-                
-                
-// --- Funzione di Logout ---
-function logout() {
-localStorage.removeItem('currentUser');
-// Se hai variabili di sessione/cookie, cancellale qui
-window.location.href = 'index.html'; // pagina di login
-}
-</script>
+    window.addEventListener('load', function() {
+        updateDashboardUserInfo();
+        checkUserPermissions();
+    });
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

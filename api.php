@@ -340,6 +340,63 @@ function verifyPassword($password, $hash) {
     return password_verify($password, $hash);
 }
 
+function getAuthenticatedUser($input = null) {
+    $token = '';
+    
+    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        if (preg_match('/Bearer\s(\S+)/', $_SERVER['HTTP_AUTHORIZATION'], $matches)) {
+            $token = $matches[1];
+        }
+    } elseif (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        if (isset($headers['Authorization'])) {
+            if (preg_match('/Bearer\s(\S+)/', $headers['Authorization'], $matches)) {
+                $token = $matches[1];
+            }
+        }
+    }
+    
+    if (empty($token) && $input && isset($input['token'])) {
+        $token = $input['token'];
+    }
+
+    if (empty($token) && isset($_GET['token'])) {
+        $token = $_GET['token'];
+    }
+    
+    if (empty($token)) {
+        return null;
+    }
+    
+    $users = readUsers();
+    foreach ($users as $user) {
+        if (isset($user['token']) && $user['token'] === $token) {
+            return $user;
+        }
+    }
+    
+    return null;
+}
+
+function requireLevel($minimumLevel, $input = null) {
+    $hierarchy = ['user' => 1, 'manager' => 2, 'admin' => 3];
+    $user = getAuthenticatedUser($input);
+    
+    if (!$user) {
+        sendResponse(false, 'Authentication required');
+    }
+    
+    if (!$user['is_active']) {
+        sendResponse(false, 'Account disabled');
+    }
+    
+    if ($hierarchy[$user['level']] < $hierarchy[$minimumLevel]) {
+        sendResponse(false, 'Insufficient permissions (requires ' . $minimumLevel . '+)');
+    }
+    
+    return $user;
+}
+
 function generateToken() {
     return bin2hex(random_bytes(32));
 }
@@ -467,37 +524,43 @@ $action = $input['action']; */
 
 switch ($action) {
     case 'getCalendarEvents':
+        requireLevel('user', $input);
         handleGetCalendarEvents();
         break;
     
     case 'addCalendarEvent':
+        requireLevel('manager', $input);
         handleAddCalendarEvent($input);
         break;
     
     case 'editCalendarEvent':
+        requireLevel('manager', $input);
         handleEditCalendarEvent($input);
         break;
     
     case 'deleteCalendarEvent':
+        requireLevel('manager', $input);
         handleDeleteCalendarEvent($input);
         break;                
-                
-                
-case 'getFiles':
-    $files = readFiles();
-    echo json_encode(['success'=>true, 'data'=>$files]);
-    break;
-
-case 'getQuota':
-    $quota = updateQuotaUsage();
-    echo json_encode(['success'=>true, 'data'=>$quota]);
-    break;
-
-case 'uploadFile':
-    if (!isset($_FILES['file'])) {
-        echo json_encode(['success'=>false, 'message'=>'No file uploaded']);
+    
+    case 'getFiles':
+        requireLevel('user', $input);
+        $files = readFiles();
+        echo json_encode(['success'=>true, 'data'=>$files]);
         break;
-    }
+    
+    case 'getQuota':
+        requireLevel('user', $input);
+        $quota = updateQuotaUsage();
+        echo json_encode(['success'=>true, 'data'=>$quota]);
+        break;
+    
+    case 'uploadFile':
+        requireLevel('manager', $input);
+        if (!isset($_FILES['file'])) {
+            echo json_encode(['success'=>false, 'message'=>'No file uploaded']);
+            break;
+        }
     
     $file = $_FILES['file'];
     
@@ -561,370 +624,418 @@ case 'uploadFile':
     
     echo json_encode(['success'=>true, 'message'=>'File uploaded successfully']);
     break;
-case 'downloadFile':
-    // Per i download, i parametri arrivano via GET
-    $filename = $_GET['filename'] ?? '';
-    if ($filename === '') {
-        http_response_code(400);
-        echo json_encode(['success'=>false, 'message'=>'Filename required']);
+    case 'downloadFile':
+        requireLevel('user', $input);
+        // Per i download, i parametri arrivano via GET
+        $filename = $_GET['filename'] ?? '';
+        if ($filename === '') {
+            http_response_code(400);
+            echo json_encode(['success'=>false, 'message'=>'Filename required']);
+            exit;
+        }
+        
+        $files = readFiles();
+        $fileInfo = null;
+        
+        foreach ($files as $file) {
+            if ($file['filename'] === $filename) {
+                $fileInfo = $file;
+                break;
+            }
+        }
+        
+        if (!$fileInfo) {
+            http_response_code(404);
+            echo json_encode(['success'=>false, 'message'=>'File not found']);
+            exit;
+        }
+        
+        $filePath = UPLOAD_DIR . $fileInfo['category'] . '/' . $filename;
+        
+        if (!file_exists($filePath)) {
+            http_response_code(404);
+            echo json_encode(['success'=>false, 'message'=>'File not found on disk']);
+            exit;
+        }
+        
+        // Headers per download
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . $fileInfo['original_name'] . '"');
+        header('Content-Length: ' . filesize($filePath));
+        header('Cache-Control: no-cache, must-revalidate');
+        
+        readfile($filePath);
         exit;
-    }
     
-    $files = readFiles();
-    $fileInfo = null;
+    case 'getTeams':
+        requireLevel('user', $input);
+        $teams = readJson(TEAM_FILE);
+        echo json_encode(['success'=>true, 'data'=>$teams]);
+        break;
     
-    foreach ($files as $file) {
-        if ($file['filename'] === $filename) {
-            $fileInfo = $file;
+    case 'getKanban':
+        requireLevel('user', $input);
+        $kanban = readJson(KANBAN_FILE);
+        echo json_encode(['success'=>true, 'data'=>$kanban]);
+        break;
+    
+    case 'addKanban':
+        requireLevel('user', $input);
+        $title = trim($input['title'] ?? '');
+        $status = $input['status'] ?? '';
+        $team = $input['team'] ?? '';
+        $validStatuses = ['todo', 'inprogress', 'done'];
+        if ($title === '' || !in_array($status, $validStatuses) || $team === '') {
+            echo json_encode(['success'=>false, 'message'=>'Invalid Kanban task data']);
             break;
         }
-    }
-    
-    if (!$fileInfo) {
-        http_response_code(404);
-        echo json_encode(['success'=>false, 'message'=>'File not found']);
-        exit;
-    }
-    
-    $filePath = UPLOAD_DIR . $fileInfo['category'] . '/' . $filename;
-    
-    if (!file_exists($filePath)) {
-        http_response_code(404);
-        echo json_encode(['success'=>false, 'message'=>'File not found on disk']);
-        exit;
-    }
-    
-    // Headers per download
-    header('Content-Type: application/octet-stream');
-    header('Content-Disposition: attachment; filename="' . $fileInfo['original_name'] . '"');
-    header('Content-Length: ' . filesize($filePath));
-    header('Cache-Control: no-cache, must-revalidate');
-    
-    readfile($filePath);
-    exit;
-
-case 'getTeams':
-$teams = readJson(TEAM_FILE);
-echo json_encode(['success'=>true, 'data'=>$teams]);
-break;
-
-case 'getKanban':
-$kanban = readJson(KANBAN_FILE);
-echo json_encode(['success'=>true, 'data'=>$kanban]);
-break;
-
-case 'addKanban':
-$title = trim($input['title'] ?? '');
-$status = $input['status'] ?? '';
-$team = $input['team'] ?? '';
-$validStatuses = ['todo', 'inprogress', 'done'];
-if ($title === '' || !in_array($status, $validStatuses) || $team === '') {
-echo json_encode(['success'=>false, 'message'=>'Invalid Kanban task data']);
-break;
-}
-$kanban = readJson(KANBAN_FILE);
-$kanban[] = ['title'=>$title, 'status'=>$status, 'team'=>$team];
-writeJson(KANBAN_FILE, $kanban);
-echo json_encode(['success'=>true, 'data'=>$kanban]);
-break;
-
-case 'editKanban':
-$index = isset($input['index']) ? (int)$input['index'] : -1;
-$title = trim($input['title'] ?? '');
-$status = $input['status'] ?? '';
-$team = $input['team'] ?? '';
-$validStatuses = ['todo','inprogress','done'];
-if ($index < 0 || $title === '' || !in_array($status, $validStatuses) || $team === '') {
-echo json_encode(['success'=>false, 'message'=>'Invalid data for Kanban edit']);
-break;
-}
-$kanban = readJson(KANBAN_FILE);
-if (!isset($kanban[$index])) {
-echo json_encode(['success'=>false, 'message'=>'Kanban task index not found']);
-break;
-}
-$kanban[$index] = ['title'=>$title, 'status'=>$status, 'team'=>$team];
-writeJson(KANBAN_FILE, $kanban);
-echo json_encode(['success'=>true, 'data'=>$kanban]);
-break;
-
-case 'deleteKanban':
-$index = isset($input['index']) ? (int)$input['index'] : -1;
-$kanban = readJson(KANBAN_FILE);
-if (!isset($kanban[$index])) {
-echo json_encode(['success'=>false, 'message'=>'Invalid Kanban task index']);
-break;
-}
-array_splice($kanban, $index, 1);
-writeJson(KANBAN_FILE, $kanban);
-echo json_encode(['success'=>true]);
-break;
-
-case 'getGantt':
-$gantt = readJson(GANTT_FILE);
-echo json_encode(['success'=>true, 'data'=>$gantt]);
-break;
-
-case 'addGantt':
-$title = trim($input['title'] ?? '');
-$start = $input['start'] ?? '';
-$end = $input['end'] ?? '';
-$team = $input['team'] ?? '';
-if ($title === '' || $start === '' || $end === '' || $team === '') {
-echo json_encode(['success'=>false, 'message'=>'Invalid Gantt task data']);
-break;
-}
-if ($end < $start) {
-echo json_encode(['success'=>false, 'message'=>'End date cannot be before start date']);
-break;
-}
-$gantt = readJson(GANTT_FILE);
-$gantt[] = ['title'=>$title, 'start'=>$start, 'end'=>$end, 'team'=>$team];
-writeJson(GANTT_FILE, $gantt);
-echo json_encode(['success'=>true, 'data'=>$gantt]);
-break;
-
-case 'editGantt':
-$index = isset($input['index']) ? (int)$input['index'] : -1;
-$title = trim($input['title'] ?? '');
-$start = $input['start'] ?? '';
-$end = $input['end'] ?? '';
-$team = $input['team'] ?? '';
-if ($index < 0 || $title === '' || $start === '' || $end === '' || $team === '') {
-echo json_encode(['success'=>false, 'message'=>'Invalid data for Gantt edit']);
-break;
-}
-if ($end < $start) {
-echo json_encode(['success'=>false, 'message'=>'End date cannot be before start date']);
-break;
-}
-$gantt = readJson(GANTT_FILE);
-if (!isset($gantt[$index])) {
-echo json_encode(['success'=>false, 'message'=>'Gantt task index not found']);
-break;
-}
-$gantt[$index] = ['title'=>$title, 'start'=>$start, 'end'=>$end, 'team'=>$team];
-writeJson(GANTT_FILE, $gantt);
-echo json_encode(['success'=>true, 'data'=>$gantt]);
-break;
-
-case 'deleteGantt':
-$index = isset($input['index']) ? (int)$input['index'] : -1;
-$gantt = readJson(GANTT_FILE);
-if (!isset($gantt[$index])) {
-echo json_encode(['success'=>false, 'message'=>'Invalid Gantt task index']);
-break;
-}
-array_splice($gantt, $index, 1);
-writeJson(GANTT_FILE, $gantt);
-echo json_encode(['success'=>true]);
-break;
-
-case 'getNotes':
-$notes = readJson(NOTES_FILE);
-echo json_encode(['success'=>true, 'data'=>$notes]);
-break;
-// Aggiungi questi case al switch statement esistente in api.php
-
-case 'addNote':
-    $text = trim($input['text'] ?? '');
-    $team = trim($input['team'] ?? '');
-    if ($text === '') {
-        echo json_encode(['success'=>false, 'message'=>'All fields required']);
+        $kanban = readJson(KANBAN_FILE);
+        $kanban[] = ['title'=>$title, 'status'=>$status, 'team'=>$team];
+        writeJson(KANBAN_FILE, $kanban);
+        echo json_encode(['success'=>true, 'data'=>$kanban]);
         break;
-    }
-    $notes = readJson(NOTES_FILE);
-    $notes[] = [
-        'text' => $text,
-        'team' => $team,
-        'created_at' => date('Y-m-d H:i:s')
-    ];
-    writeJson(NOTES_FILE, $notes);
-    echo json_encode(['success'=>true, 'data'=>$notes]);
-    break;
+    
+    case 'editKanban':
+        $user = requireLevel('user', $input);
+        $index = isset($input['index']) ? (int)$input['index'] : -1;
+        $title = trim($input['title'] ?? '');
+        $status = $input['status'] ?? '';
+        $team = $input['team'] ?? '';
+        $validStatuses = ['todo','inprogress','done'];
+        if ($index < 0 || $title === '' || !in_array($status, $validStatuses) || $team === '') {
+            echo json_encode(['success'=>false, 'message'=>'Invalid data for Kanban edit']);
+            break;
+        }
+        $kanban = readJson(KANBAN_FILE);
+        if (!isset($kanban[$index])) {
+            echo json_encode(['success'=>false, 'message'=>'Kanban task index not found']);
+            break;
+        }
+        
+        // Controllo permessi: admin/manager possono tutto, user solo i propri (se team === username)
+        if ($user['level'] === 'user' && $kanban[$index]['team'] !== $user['username']) {
+            echo json_encode(['success'=>false, 'message'=>'Non hai i permessi per modificare questo task']);
+            break;
+        }
 
-case 'editNote':
-    $index = isset($input['index']) ? (int)$input['index'] : -1;
-    $text = trim($input['text'] ?? '');
-    $team = trim($input['team'] ?? '');
-    if ($index < 0 || $text === '') {
-        echo json_encode(['success'=>false, 'message'=>'Invalid data for note edit']);
+        $kanban[$index] = ['title'=>$title, 'status'=>$status, 'team'=>$team];
+        writeJson(KANBAN_FILE, $kanban);
+        echo json_encode(['success'=>true, 'data'=>$kanban]);
         break;
-    }
-    $notes = readJson(NOTES_FILE);
-    if (!isset($notes[$index])) {
-        echo json_encode(['success'=>false, 'message'=>'Note index not found']);
+    
+    case 'deleteKanban':
+        $user = requireLevel('user', $input);
+        $index = isset($input['index']) ? (int)$input['index'] : -1;
+        $kanban = readJson(KANBAN_FILE);
+        if (!isset($kanban[$index])) {
+            echo json_encode(['success'=>false, 'message'=>'Invalid Kanban task index']);
+            break;
+        }
+
+        // Controllo permessi: admin/manager possono tutto, user solo i propri
+        if ($user['level'] === 'user' && $kanban[$index]['team'] !== $user['username']) {
+            echo json_encode(['success'=>false, 'message'=>'Non hai i permessi per eliminare questo task']);
+            break;
+        }
+
+        array_splice($kanban, $index, 1);
+        writeJson(KANBAN_FILE, $kanban);
+        echo json_encode(['success'=>true]);
         break;
-    }
-    $notes[$index]['text'] = $text;
-    $notes[$index]['team'] = $team;
-    $notes[$index]['updated_at'] = date('Y-m-d H:i:s');
-    writeJson(NOTES_FILE, $notes);
-    echo json_encode(['success'=>true, 'data'=>$notes]);
-    break;
-
-case 'deleteNote':
-    $index = isset($input['index']) ? (int)$input['index'] : -1;
-    $notes = readJson(NOTES_FILE);
-    if (!isset($notes[$index])) {
-        echo json_encode(['success'=>false, 'message'=>'Invalid note index']);
+    
+    case 'getGantt':
+        requireLevel('user', $input);
+        $gantt = readJson(GANTT_FILE);
+        echo json_encode(['success'=>true, 'data'=>$gantt]);
         break;
-    }
-    array_splice($notes, $index, 1);
-    writeJson(NOTES_FILE, $notes);
-    echo json_encode(['success'=>true]);
-    break;
-case 'getTeamsWithMembers':
-$teams = readJson(TEAM_FILE);
-echo json_encode(['success' => true, 'data' => $teams]);
-break;
+    
+    case 'addGantt':
+        requireLevel('manager', $input);
+        $title = trim($input['title'] ?? '');
+        $start = $input['start'] ?? '';
+        $end = $input['end'] ?? '';
+        $team = $input['team'] ?? '';
+        if ($title === '' || $start === '' || $end === '' || $team === '') {
+            echo json_encode(['success'=>false, 'message'=>'Invalid Gantt task data']);
+            break;
+        }
+        if ($end < $start) {
+            echo json_encode(['success'=>false, 'message'=>'End date cannot be before start date']);
+            break;
+        }
+        $gantt = readJson(GANTT_FILE);
+        $gantt[] = ['title'=>$title, 'start'=>$start, 'end'=>$end, 'team'=>$team];
+        writeJson(GANTT_FILE, $gantt);
+        echo json_encode(['success'=>true, 'data'=>$gantt]);
+        break;
+    
+    case 'editGantt':
+        requireLevel('manager', $input);
+        $index = isset($input['index']) ? (int)$input['index'] : -1;
+        $title = trim($input['title'] ?? '');
+        $start = $input['start'] ?? '';
+        $end = $input['end'] ?? '';
+        $team = $input['team'] ?? '';
+        if ($index < 0 || $title === '' || $start === '' || $end === '' || $team === '') {
+            echo json_encode(['success'=>false, 'message'=>'Invalid data for Gantt edit']);
+            break;
+        }
+        if ($end < $start) {
+            echo json_encode(['success'=>false, 'message'=>'End date cannot be before start date']);
+            break;
+        }
+        $gantt = readJson(GANTT_FILE);
+        if (!isset($gantt[$index])) {
+            echo json_encode(['success'=>false, 'message'=>'Gantt task index not found']);
+            break;
+        }
+        $gantt[$index] = ['title'=>$title, 'start'=>$start, 'end'=>$end, 'team'=>$team];
+        writeJson(GANTT_FILE, $gantt);
+        echo json_encode(['success'=>true, 'data'=>$gantt]);
+        break;
+    
+    case 'deleteGantt':
+        requireLevel('manager', $input);
+        $index = isset($input['index']) ? (int)$input['index'] : -1;
+        $gantt = readJson(GANTT_FILE);
+        if (!isset($gantt[$index])) {
+            echo json_encode(['success'=>false, 'message'=>'Invalid Gantt task index']);
+            break;
+        }
+        array_splice($gantt, $index, 1);
+        writeJson(GANTT_FILE, $gantt);
+        echo json_encode(['success'=>true]);
+        break;
+    
+    case 'getNotes':
+        requireLevel('user', $input);
+        $notes = readJson(NOTES_FILE);
+        echo json_encode(['success'=>true, 'data'=>$notes]);
+        break;
+    
+    case 'addNote':
+        $user = requireLevel('user', $input);
+        $text = trim($input['text'] ?? '');
+        $team = trim($input['team'] ?? ''); // Nelle note, team è usato per lo username del proprietario
+        if ($text === '') {
+            echo json_encode(['success'=>false, 'message'=>'All fields required']);
+            break;
+        }
+        $notes = readJson(NOTES_FILE);
+        $notes[] = [
+            'text' => $text,
+            'team' => $user['username'], // Forza lo username dell'utente loggato
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+        writeJson(NOTES_FILE, $notes);
+        echo json_encode(['success'=>true, 'data'=>$notes]);
+        break;
+    
+    case 'editNote':
+        $user = requireLevel('user', $input);
+        $index = isset($input['index']) ? (int)$input['index'] : -1;
+        $text = trim($input['text'] ?? '');
+        if ($index < 0 || $text === '') {
+            echo json_encode(['success'=>false, 'message'=>'Invalid data for note edit']);
+            break;
+        }
+        $notes = readJson(NOTES_FILE);
+        if (!isset($notes[$index])) {
+            echo json_encode(['success'=>false, 'message'=>'Note index not found']);
+            break;
+        }
 
-case 'addTeam':
-$name = trim($input['name'] ?? '');
-if ($name === '') {
-echo json_encode(['success'=>false,'message'=>'Nome team richiesto']);
-break;
-}
-$teams = readJson(TEAM_FILE);
-foreach($teams as $t){
-if(strtolower($t['name']) === strtolower($name)){
-echo json_encode(['success'=>false,'message'=>'Team già esistente']);
-break 2;
-}
-}
-$teams[] = ['name' => $name, 'members' => []];
-writeJson(TEAM_FILE, $teams);
-echo json_encode(['success'=>true]);
-break;
+        // Controllo permessi
+        if ($user['level'] === 'user' && $notes[$index]['team'] !== $user['username']) {
+            echo json_encode(['success'=>false, 'message'=>'Non hai i permessi per modificare questa nota']);
+            break;
+        }
 
-case 'deleteTeam':
-$index = isset($input['index']) ? (int)$input['index'] : -1;
-$teams = readJson(TEAM_FILE);
-if (!isset($teams[$index])) {
-echo json_encode(['success'=>false,'message'=>'Indice team non valido']);
-break;
-}
-array_splice($teams, $index, 1);
-writeJson(TEAM_FILE, $teams);
-echo json_encode(['success'=>true]);
-break;
+        $notes[$index]['text'] = $text;
+        $notes[$index]['updated_at'] = date('Y-m-d H:i:s');
+        writeJson(NOTES_FILE, $notes);
+        echo json_encode(['success'=>true, 'data'=>$notes]);
+        break;
+    
+    case 'deleteNote':
+        $user = requireLevel('user', $input);
+        $index = isset($input['index']) ? (int)$input['index'] : -1;
+        $notes = readJson(NOTES_FILE);
+        if (!isset($notes[$index])) {
+            echo json_encode(['success'=>false, 'message'=>'Invalid note index']);
+            break;
+        }
 
-case 'addTeamMember':
-$teamName = trim($input['teamName'] ?? '');
-$memberName = trim($input['memberName'] ?? '');
-if ($teamName === '' || $memberName === '') {
-echo json_encode(['success'=>false,'message'=>'Dati mancanti']);
-break;
-}
-$teams = readJson(TEAM_FILE);
-$found = false;
-foreach($teams as &$team){
-if(strtolower($team['name']) === strtolower($teamName)){
-// controllo duplicato membro
-foreach($team['members'] as $m){
-if(strtolower($m) === strtolower($memberName)){
-echo json_encode(['success'=>false,'message'=>'Membro già presente']);
-return;
-}
-}
-$team['members'][] = $memberName;
-$found = true;
-break;
-}
-}
-if (!$found) {
-echo json_encode(['success'=>false,'message'=>'Team non trovato']);
-break;
-}
-writeJson(TEAM_FILE, $teams);
-echo json_encode(['success'=>true]);
-break;
+        // Controllo permessi
+        if ($user['level'] === 'user' && $notes[$index]['team'] !== $user['username']) {
+            echo json_encode(['success'=>false, 'message'=>'Non hai i permessi per eliminare questa nota']);
+            break;
+        }
 
-case 'deleteTeamMember':
-$teamName = trim($input['teamName'] ?? '');
-$memberIndex = isset($input['memberIndex']) ? (int)$input['memberIndex'] : -1;
-if ($teamName === '' || $memberIndex < 0) {
-echo json_encode(['success'=>false,'message'=>'Dati invalidi']);
-break;
-}
-$teams = readJson(TEAM_FILE);
-$found = false;
-foreach($teams as &$team){
-if(strtolower($team['name']) === strtolower($teamName)){
-if (!isset($team['members'][$memberIndex])) {
-echo json_encode(['success'=>false,'message'=>'Indice membro non valido']);
-return;
-}
-array_splice($team['members'], $memberIndex, 1);
-$found = true;
-break;
-}
-}
-if (!$found) {
-echo json_encode(['success'=>false,'message'=>'Team non trovato']);
-break;
-}
-writeJson(TEAM_FILE, $teams);
-echo json_encode(['success'=>true]);
-break;
-
-case 'getIssues':
-$issues = readIssues();
-echo json_encode(['success'=>true, 'data'=>$issues]);
-break;
-
-case 'addIssue':
-$taskTitle = trim($input['taskTitle'] ?? '');
-$description = trim($input['description'] ?? '');
-// 'reportedBy' rimosso
-if ($taskTitle === '' || $description === '') {
-echo json_encode(['success'=>false, 'message'=>'Missing data']);
-break;
-}
-$issues = readIssues();
-$newId = uniqid('issue_');
-$issues[] = [
-'id' => $newId,
-'taskTitle' => $taskTitle,
-'description' => $description,
-'status' => 'pending',
-// date of creation
-'created_at' => date('Y-m-d H:i:s'),
-'escalated_at' => null,
-'resolved_at' => null
-];
-writeIssues($issues);
-echo json_encode(['success'=>true, 'data'=>$issues]);
-break;
-
-case 'updateIssueStatus':
-$index = isset($input['index']) ? (int)$input['index'] : -1;
-$status = trim($input['status'] ?? '');
-if ($index < 0 || !in_array($status,['pending','solved','escalated'])) {
-echo json_encode(['success'=>false, 'message'=>'Invalid data']);
-break;
-}
-$issues = readIssues();
-if (!isset($issues[$index])) {
-echo json_encode(['success'=>false, 'message'=>'Issue not found']);
-break;
-}
-// Se cambia a 'solved' o 'escalated', settiamo rispettivamente date di risoluzione/escalation
-if ($status === 'solved') {
-$issues[$index]['resolved_at'] = date('Y-m-d H:i:s');
-$issues[$index]['status'] = $status;        
-// Invia email di completamento
-sendIssueCompleteEmail($issues[$index]);
-}
-if ($status === 'escalated') {
-$issues[$index]['escalated_at'] = date('Y-m-d H:i:s');
-$issues[$index]['status'] = $status;        
-sendIssueEscalationEmail($issues[$index]);
-}
-
-writeIssues($issues);
-echo json_encode(['success'=>true, 'data'=>$issues]);
-break;
+        array_splice($notes, $index, 1);
+        writeJson(NOTES_FILE, $notes);
+        echo json_encode(['success'=>true]);
+        break;
+    
+    case 'getTeamsWithMembers':
+        requireLevel('user', $input);
+        $teams = readJson(TEAM_FILE);
+        echo json_encode(['success' => true, 'data' => $teams]);
+        break;
+    
+    case 'addTeam':
+        requireLevel('manager', $input);
+        $name = trim($input['name'] ?? '');
+        if ($name === '') {
+            echo json_encode(['success'=>false,'message'=>'Nome team richiesto']);
+            break;
+        }
+        $teams = readJson(TEAM_FILE);
+        foreach($teams as $t){
+            if(strtolower($t['name']) === strtolower($name)){
+                echo json_encode(['success'=>false,'message'=>'Team già esistente']);
+                break 2;
+            }
+        }
+        $teams[] = ['name' => $name, 'members' => []];
+        writeJson(TEAM_FILE, $teams);
+        echo json_encode(['success'=>true]);
+        break;
+    
+    case 'deleteTeam':
+        requireLevel('admin', $input);
+        $index = isset($input['index']) ? (int)$input['index'] : -1;
+        $teams = readJson(TEAM_FILE);
+        if (!isset($teams[$index])) {
+            echo json_encode(['success'=>false,'message'=>'Indice team non valido']);
+            break;
+        }
+        array_splice($teams, $index, 1);
+        writeJson(TEAM_FILE, $teams);
+        echo json_encode(['success'=>true]);
+        break;
+    
+    case 'addTeamMember':
+        requireLevel('manager', $input);
+        $teamName = trim($input['teamName'] ?? '');
+        $memberName = trim($input['memberName'] ?? '');
+        if ($teamName === '' || $memberName === '') {
+            echo json_encode(['success'=>false,'message'=>'Dati mancanti']);
+            break;
+        }
+        $teams = readJson(TEAM_FILE);
+        $found = false;
+        foreach($teams as &$team){
+            if(strtolower($team['name']) === strtolower($teamName)){
+                // controllo duplicato membro
+                foreach($team['members'] as $m){
+                    if(strtolower($m) === strtolower($memberName)){
+                        echo json_encode(['success'=>false,'message'=>'Membro già presente']);
+                        return;
+                    }
+                }
+                $team['members'][] = $memberName;
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            echo json_encode(['success'=>false,'message'=>'Team non trovato']);
+            break;
+        }
+        writeJson(TEAM_FILE, $teams);
+        echo json_encode(['success'=>true]);
+        break;
+    
+    case 'deleteTeamMember':
+        requireLevel('manager', $input);
+        $teamName = trim($input['teamName'] ?? '');
+        $memberIndex = isset($input['memberIndex']) ? (int)$input['memberIndex'] : -1;
+        if ($teamName === '' || $memberIndex < 0) {
+            echo json_encode(['success'=>false,'message'=>'Dati invalidi']);
+            break;
+        }
+        $teams = readJson(TEAM_FILE);
+        $found = false;
+        foreach($teams as &$team){
+            if(strtolower($team['name']) === strtolower($teamName)){
+                if (!isset($team['members'][$memberIndex])) {
+                    echo json_encode(['success'=>false,'message'=>'Indice membro non valido']);
+                    return;
+                }
+                array_splice($team['members'], $memberIndex, 1);
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            echo json_encode(['success'=>false,'message'=>'Team non trovato']);
+            break;
+        }
+        writeJson(TEAM_FILE, $teams);
+        echo json_encode(['success'=>true]);
+        break;
+    
+    case 'getIssues':
+        requireLevel('user', $input);
+        $issues = readIssues();
+        echo json_encode(['success'=>true, 'data'=>$issues]);
+        break;
+    
+    case 'addIssue':
+        requireLevel('user', $input);
+        $taskTitle = trim($input['taskTitle'] ?? '');
+        $description = trim($input['description'] ?? '');
+        // 'reportedBy' rimosso
+        if ($taskTitle === '' || $description === '') {
+            echo json_encode(['success'=>false, 'message'=>'Missing data']);
+            break;
+        }
+        $issues = readIssues();
+        $newId = uniqid('issue_');
+        $issues[] = [
+            'id' => $newId,
+            'taskTitle' => $taskTitle,
+            'description' => $description,
+            'status' => 'pending',
+            // date of creation
+            'created_at' => date('Y-m-d H:i:s'),
+            'escalated_at' => null,
+            'resolved_at' => null
+        ];
+        writeIssues($issues);
+        echo json_encode(['success'=>true, 'data'=>$issues]);
+        break;
+    
+    case 'updateIssueStatus':
+        requireLevel('manager', $input);
+        $index = isset($input['index']) ? (int)$input['index'] : -1;
+        $status = trim($input['status'] ?? '');
+        if ($index < 0 || !in_array($status,['pending','solved','escalated'])) {
+            echo json_encode(['success'=>false, 'message'=>'Invalid data']);
+            break;
+        }
+        $issues = readIssues();
+        if (!isset($issues[$index])) {
+            echo json_encode(['success'=>false, 'message'=>'Issue not found']);
+            break;
+        }
+        // Se cambia a 'solved' o 'escalated', settiamo rispettivamente date di risoluzione/escalation
+        if ($status === 'solved') {
+            $issues[$index]['resolved_at'] = date('Y-m-d H:i:s');
+            $issues[$index]['status'] = $status;        
+            // Invia email di completamento
+            sendIssueCompleteEmail($issues[$index]);
+        }
+        if ($status === 'escalated') {
+            $issues[$index]['escalated_at'] = date('Y-m-d H:i:s');
+            $issues[$index]['status'] = $status;        
+            sendIssueEscalationEmail($issues[$index]);
+        }
+        
+        writeIssues($issues);
+        echo json_encode(['success'=>true, 'data'=>$issues]);
+        break;
 
                 
 case 'register':
@@ -1004,13 +1115,44 @@ case 'login':
         }
     }
     
-    if (!$foundUser || $password != $foundUser['password']) {
+    if (!$foundUser) {
+        echo json_encode(['success'=>false, 'message'=>'Credenziali non valide']);
+        break;
+    }
+    
+    $passwordCorrect = false;
+    // Supporta sia password hashate che in chiaro (per compatibilità durante la migrazione)
+    if (verifyPassword($password, $foundUser['password'])) {
+        $passwordCorrect = true;
+    } elseif ($password === $foundUser['password']) {
+        $passwordCorrect = true;
+        // Migra automaticamente la password in chiaro all'hash al primo login
+        foreach($users as $index => $u) {
+            if ($u['id'] === $foundUser['id']) {
+                $users[$index]['password'] = hashPassword($password);
+                break;
+            }
+        }
+        writeUsers($users);
+    }
+    
+    if (!$passwordCorrect) {
         echo json_encode(['success'=>false, 'message'=>'Credenziali non valide']);
         break;
     }
     
     // Genera token di sessione (semplificato)
     $token = generateToken();
+    
+    // Salva il token nell'utente nel file JSON
+    foreach($users as $index => $user) {
+        if ($user['id'] === $foundUser['id']) {
+            $users[$index]['token'] = $token;
+            $users[$index]['last_login'] = date('Y-m-d H:i:s');
+            break;
+        }
+    }
+    writeUsers($users);
     
     // Rimuovi password dalla risposta
     unset($foundUser['password']);
@@ -1019,7 +1161,23 @@ case 'login':
     echo json_encode(['success'=>true, 'message'=>'Login effettuato', 'user'=>$foundUser]);
     break;
 
+case 'logout':
+    $user = getAuthenticatedUser($input);
+    if ($user) {
+        $users = readUsers();
+        foreach($users as $index => $u) {
+            if ($u['id'] === $user['id']) {
+                $users[$index]['token'] = '';
+                break;
+            }
+        }
+        writeUsers($users);
+    }
+    echo json_encode(['success'=>true, 'message'=>'Logout effettuato']);
+    break;
+
 case 'getUsers':
+    requireLevel('admin', $input);
     $users = readUsers();
     // Rimuovi password da tutti gli utenti
     $safeUsers = array_map(function($user) {
@@ -1031,6 +1189,7 @@ case 'getUsers':
     break;
 
 case 'getUsersForTeamAssignment':
+    requireLevel('manager', $input);
     $users = readUsers();
     // Filtra solo utenti attivi e rimuovi password
     $activeUsers = array_filter($users, function($user) {
@@ -1050,6 +1209,7 @@ case 'getUsersForTeamAssignment':
     break;
 
 case 'updateUser':
+    requireLevel('admin', $input);
     $userId = trim($input['userId'] ?? '');
     $fullName = trim($input['fullName'] ?? '');
     $email = trim($input['email'] ?? '');
@@ -1117,6 +1277,7 @@ case 'updateUser':
     break;
                 
 case 'updateUserLevel':
+    requireLevel('admin', $input);
     $userId = trim($input['userId'] ?? '');
     $level = trim($input['level'] ?? '');
     
@@ -1160,6 +1321,7 @@ case 'updateUserLevel':
                 
 
 case 'changePassword':
+    $userAuth = requireLevel('user', $input);
     $userId = trim($input['userId'] ?? '');
     $currentPassword = trim($input['currentPassword'] ?? '');
     $newPassword = trim($input['newPassword'] ?? '');
@@ -1169,6 +1331,13 @@ case 'changePassword':
         break;
     }
     
+    // Controllo permessi: solo l'utente stesso può cambiare la propria password (tranne admin?)
+    // Di solito admin può resettare password, ma qui implementiamo solo cambio propria.
+    if ($userAuth['level'] !== 'admin' && $userAuth['id'] !== $userId) {
+        echo json_encode(['success'=>false, 'message'=>'Non hai i permessi per cambiare la password di un altro utente']);
+        break;
+    }
+
     if (strlen($newPassword) < 6) {
         echo json_encode(['success'=>false, 'message'=>'Nuova password deve essere di almeno 6 caratteri']);
         break;
@@ -1189,7 +1358,9 @@ case 'changePassword':
         break;
     }
     
-    if (!verifyPassword($currentPassword, $users[$userIndex]['password'])) {
+    // Se non è admin, deve verificare la password attuale
+    if ($userAuth['level'] !== 'admin' && !verifyPassword($currentPassword, $users[$userIndex]['password']) && $currentPassword !== $users[$userIndex]['password']) {
+        // Aggiunto controllo fallback password in chiaro per retrocompatibilità come visto in login
         echo json_encode(['success'=>false, 'message'=>'Password attuale non corretta']);
         break;
     }
@@ -1201,6 +1372,74 @@ case 'changePassword':
     
     echo json_encode(['success'=>true, 'message'=>'Password cambiata con successo']);
     break;                
+
+case 'deleteIssue':
+    requireLevel('admin', $input);
+    $index = isset($input['index']) ? (int)$input['index'] : -1;
+    $issues = readIssues();
+    if (!isset($issues[$index])) {
+        echo json_encode(['success'=>false, 'message'=>'Issue non trovata']);
+        break;
+    }
+    array_splice($issues, $index, 1);
+    writeIssues($issues);
+    echo json_encode(['success'=>true, 'message'=>'Issue eliminata']);
+    break;
+
+case 'deleteFile':
+    requireLevel('admin', $input);
+    $filename = $input['filename'] ?? '';
+    if ($filename === '') {
+        echo json_encode(['success'=>false, 'message'=>'Nome file richiesto']);
+        break;
+    }
+    
+    $files = readFiles();
+    $found = false;
+    $category = '';
+    foreach ($files as $index => $file) {
+        if ($file['filename'] === $filename) {
+            $category = $file['category'];
+            array_splice($files, $index, 1);
+            $found = true;
+            break;
+        }
+    }
+    
+    if (!$found) {
+        echo json_encode(['success'=>false, 'message'=>'File non trovato']);
+        break;
+    }
+    
+    $filePath = UPLOAD_DIR . $category . '/' . $filename;
+    if (file_exists($filePath)) {
+        unlink($filePath);
+    }
+    
+    writeFiles($files);
+    updateQuotaUsage();
+    echo json_encode(['success'=>true, 'message'=>'File eliminato']);
+    break;
+
+case 'getSetup':
+    requireLevel('admin', $input);
+    $setup = loadData(SETUP_FILE);
+    echo json_encode(['success'=>true, 'data'=>$setup]);
+    break;
+
+case 'saveSetup':
+    requireLevel('admin', $input);
+    $newSetup = $input['setup'] ?? null;
+    if (!$newSetup) {
+        echo json_encode(['success'=>false, 'message'=>'Dati non validi']);
+        break;
+    }
+    if (saveData(SETUP_FILE, $newSetup)) {
+        echo json_encode(['success'=>true, 'message'=>'Impostazioni salvate']);
+    } else {
+        echo json_encode(['success'=>false, 'message'=>'Errore nel salvataggio']);
+    }
+    break;
                 
 default:
 echo json_encode(['success'=>false, 'message'=>'Unknown action']);

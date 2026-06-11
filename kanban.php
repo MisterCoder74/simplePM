@@ -8,6 +8,7 @@ $created_at = date('Y-m-d H:i:s');
   <meta charset="UTF-8" />
   <title>Kanban Board</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
 <style>
     body, html { 
       height: 100%; 
@@ -23,6 +24,7 @@ $created_at = date('Y-m-d H:i:s');
       margin-bottom: 20px;
       padding: 20px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      position: relative;
     }
     
     .kanban-container {
@@ -49,7 +51,7 @@ $created_at = date('Y-m-d H:i:s');
       transform: translateY(-2px);
     }
     
-    .kanban-column h4 {
+    .kanban-column h4, .kanban-column h5 {
       text-align: center;
       margin-bottom: 20px;
       padding: 10px;
@@ -60,17 +62,17 @@ $created_at = date('Y-m-d H:i:s');
       font-size: 0.9rem;
     }
     
-    .kanban-column:nth-child(1) h4 {
+    .kanban-column:nth-child(1) h4, .kanban-column:nth-child(1) h5 {
       background: linear-gradient(45deg, #ff6b6b, #ffa500);
       color: white;
     }
     
-    .kanban-column:nth-child(2) h4 {
+    .kanban-column:nth-child(2) h4, .kanban-column:nth-child(2) h5 {
       background: linear-gradient(45deg, #4ecdc4, #44a08d);
       color: white;
     }
     
-    .kanban-column:nth-child(3) h4 {
+    .kanban-column:nth-child(3) h4, .kanban-column:nth-child(3) h5 {
       background: linear-gradient(45deg, #45b7d1, #96c93d);
       color: white;
     }
@@ -313,13 +315,13 @@ $created_at = date('Y-m-d H:i:s');
   <div class="kanban-container" id="kanban-board">
     <!-- Le colonne verranno generate dinamicamente dal JavaScript -->
     <div class="kanban-column">
-      <h4><i class="fas fa-clock me-2"></i>To Do</h4>
+      <h5><i class="fas fa-clock me-2"></i>To Do</h5>
     </div>
     <div class="kanban-column">
-      <h4><i class="fas fa-cog me-2"></i>In Progress</h4>
+      <h5><i class="fas fa-cog me-2"></i>In Progress</h5>
     </div>
     <div class="kanban-column">
-      <h4><i class="fas fa-check-circle me-2"></i>Done</h4>
+      <h5><i class="fas fa-check-circle me-2"></i>Done</h5>
     </div>
   </div>
   
@@ -353,7 +355,7 @@ $created_at = date('Y-m-d H:i:s');
       <div class="col-md-3">
         <div class="form-floating">      
         <button class="btn btn-primary" type="submit">
-          <i class="fas fa-save me-2"></i>Save Changes
+          <i class="fas fa-save me-2"></i>Add Task
         </button>
         </div>
       </div>
@@ -404,23 +406,14 @@ $created_at = date('Y-m-d H:i:s');
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="auth.js"></script>
 <script>
   let kanbanTasks = [];
 
-
   const kanbanEditModal = new bootstrap.Modal(document.getElementById('kanbanEditModal'));
 
-  async function fetchJSON(data) {
-    const res = await fetch('api.php', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    });
-    return res.json();
-  }
-
   async function loadData() {
-    const kanbanRes = await fetchJSON({action:'getKanban'});
+    const kanbanRes = await fetchWithAuth({action:'getKanban'});
     if(kanbanRes.success){
       kanbanTasks = kanbanRes.data;
       renderKanban(kanbanTasks);
@@ -432,14 +425,12 @@ $created_at = date('Y-m-d H:i:s');
     return text.replace(/[&<>"']/g, m => map[m]);
   }
 
-
-  // Render Kanban board grouped in 3 columns
-
   function renderKanban(tasks){
     const board = document.getElementById('kanban-board');
     board.innerHTML = '';
     const statuses = ['todo','inprogress','done'];
     const titles = {'todo':'To Do','inprogress':'In Progress','done':'Done'};
+    const currentUser = getCurrentUser();
 
     statuses.forEach(status=>{
       const col = document.createElement('div');
@@ -450,13 +441,22 @@ $created_at = date('Y-m-d H:i:s');
         if(task.status === status){
           const card = document.createElement('div');
           card.className = 'task-card';
+          
+          let actionButtons = '';
+          // Show edit/delete only if admin/manager or if it's user's own task
+          if (isAdminOrManager() || (currentUser && task.team === currentUser.username)) {
+            actionButtons = `
+              <div class="btn-task">
+                <button class="btn btn-sm btn-outline-primary btn-kanban-edit" data-index="${i}" title="Edit">&#9998;</button>
+                <button class="btn btn-sm btn-outline-danger btn-kanban-delete" data-index="${i}" title="Delete">&times;</button>
+              </div>
+            `;
+          }
+
           card.innerHTML = `
             <strong>${escapeHtml(task.title)}</strong><br/>
             <small>Author: ${escapeHtml(task.team)}</small>
-            <div class="btn-task">
-              <button class="btn btn-sm btn-outline-primary btn-kanban-edit" data-index="${i}" title="Edit">&#9998;</button>
-              <button class="btn btn-sm btn-outline-danger btn-kanban-delete" data-index="${i}" title="Delete">&times;</button>
-            </div>
+            ${actionButtons}
           `;
           col.appendChild(card);
         }
@@ -466,7 +466,7 @@ $created_at = date('Y-m-d H:i:s');
 
     document.querySelectorAll('.btn-kanban-edit').forEach(btn=>{
       btn.onclick = e => {
-        const idx = e.target.dataset.index;
+        const idx = e.currentTarget.dataset.index;
         openKanbanEditModal(idx);
       }
     });
@@ -474,8 +474,8 @@ $created_at = date('Y-m-d H:i:s');
     document.querySelectorAll('.btn-kanban-delete').forEach(btn=>{
       btn.onclick = async e => {
         if(!confirm('Delete this Kanban task?')) return;
-        const idx = e.target.dataset.index;
-        const res = await fetchJSON({action: 'deleteKanban', index: parseInt(idx)});
+        const idx = e.currentTarget.dataset.index;
+        const res = await fetchWithAuth({action: 'deleteKanban', index: parseInt(idx)});
         if(res.success){
           kanbanTasks.splice(idx,1);
           renderKanban(kanbanTasks);
@@ -494,204 +494,74 @@ $created_at = date('Y-m-d H:i:s');
   }
 
 document.getElementById('kanban-edit-form').addEventListener('submit', async e => {
-e.preventDefault();
-const index = parseInt(document.getElementById('kanban-edit-index').value);
-const title = document.getElementById('kanban-edit-title').value.trim();
-const status = document.getElementById('kanban-edit-status').value;
-
-// Ottieni l'utente corrente
-const currentUser = getCurrentUser();
-if (!currentUser) {
-alert('Utente corrente non trovato.');
-return;
-}
-// Imposta team automaticamente all'utente corrente
-const team = currentUser.name || currentUser.username || 'Unknown';
-
-// Verifica
-if (!title || !status || !team) {
-return alert('Tutti i campi sono obbligatori.');
-}
-
-const res = await fetchJSON({action:'editKanban', index, title, status, team});
-if(res.success){
-kanbanTasks = res.data;
-renderKanban(kanbanTasks);
-kanbanEditModal.hide();
-} else alert(res.message || 'Errore durante l\'aggiornamento del task');
+    e.preventDefault();
+    const index = parseInt(document.getElementById('kanban-edit-index').value);
+    const title = document.getElementById('kanban-edit-title').value.trim();
+    const status = document.getElementById('kanban-edit-status').value;
+    
+    const currentUser = getCurrentUser();
+    if (!currentUser) return;
+    
+    // Maintain the original author or set to current user if missing
+    const team = kanbanTasks[index].team || currentUser.username;
+    
+    if (!title || !status) {
+        return alert('Tutti i campi sono obbligatori.');
+    }
+    
+    const res = await fetchWithAuth({action:'editKanban', index, title, status, team});
+    if(res.success){
+        kanbanTasks = res.data;
+        renderKanban(kanbanTasks);
+        kanbanEditModal.hide();
+    } else alert(res.message || 'Errore durante l\'aggiornamento del task');
 });
-
 
 document.getElementById('kanban-form').addEventListener('submit', async e => {
-e.preventDefault();
-const title = document.getElementById('kanban-title').value.trim();
-const status = document.getElementById('kanban-status').value;
-
-// Ottieni l'utente corrente
-const currentUser = getCurrentUser();
-if (!currentUser) {
-alert('Utente corrente non trovato.');
-return;
-}
-
-// Usa il nome dell'utente corrente come team del task
-const team = currentUser.name || currentUser.username || 'Unknown';
-
-// Ora chiama la funzione di API con il team "automatico"
-const res = await fetchJSON({action:'addKanban', title, status, team});
-if(res.success){
-kanbanTasks = res.data;
-renderKanban(kanbanTasks);
-e.target.reset();
-} else {
-alert(res.message || 'Errore durante l\'aggiunta del task');
-}
-});
-        
-// Funzione helper per ottenere l'utente corrente (se non già presente)
-function getCurrentUser() {
-try {
-const userData = localStorage.getItem('currentUser');
-return userData ? JSON.parse(userData) : null;
-} catch (error) {
-console.error('Errore nel parsing dei dati utente:', error);
-return null;
-}
-}
-        
-// Funzione per aggiornare le informazioni utente nell'header
-function updateUserInfoInHeader() {
+    e.preventDefault();
+    const title = document.getElementById('kanban-title').value.trim();
+    const status = document.getElementById('kanban-status').value;
+    
     const currentUser = getCurrentUser();
-    const userInfoDiv = document.getElementById('user-info');
-    const userNameSpan = document.getElementById('user-name');
-    const userLevelBadge = document.getElementById('user-level-badge');
-    const userAvatar = document.getElementById('user-avatar');
+    if (!currentUser) return;
     
-    if (currentUser) {
-        // Mostra la sezione info utente
-        userInfoDiv.style.display = 'flex';
-        
-        // Imposta il nome
-        userNameSpan.textContent = currentUser.fullName || currentUser.username;
-        
-        // Imposta il badge del livello con colori appropriati
-        userLevelBadge.textContent = currentUser.level.toUpperCase();
-        userLevelBadge.className = 'badge ' + getLevelBadgeClass(currentUser.level);
-        
-        // Imposta l'avatar con iniziali
-        const initials = getInitials(currentUser.fullName || currentUser.username);
-        userAvatar.textContent = initials;
-        userAvatar.style.backgroundColor = getAvatarColor(currentUser.level);
-        
+    const team = currentUser.username;
+    
+    const res = await fetchWithAuth({action:'addKanban', title, status, team});
+    if(res.success){
+        kanbanTasks = res.data;
+        renderKanban(kanbanTasks);
+        e.target.reset();
     } else {
-        // Nascondi la sezione se non c'è utente
-        userInfoDiv.style.display = 'none';
+        alert(res.message || 'Errore durante l\'aggiunta del task');
     }
-}
+});
 
-// Funzione per ottenere la classe CSS del badge in base al livello
-function getLevelBadgeClass(level) {
-    switch(level) {
-        case 'admin':
-            return 'bg-danger text-white'; // Rosso per admin
-        case 'manager':
-            return 'bg-warning text-dark'; // Giallo per manager
-        case 'user':
-        default:
-            return 'bg-secondary text-white'; // Grigio per user
-    }
-}
-
-// Funzione per ottenere il colore dell'avatar in base al livello
-function getAvatarColor(level) {
-    switch(level) {
-        case 'admin':
-            return '#dc3545'; // Rosso per admin
-        case 'manager':
-            return '#ffc107'; // Giallo per manager
-        case 'user':
-        default:
-            return '#007bff'; // Blu per user
-    }
-}
-
-// Funzione per estrarre le iniziali dal nome
-function getInitials(fullName) {
-    if (!fullName) return 'U';
-    
-    const names = fullName.trim().split(' ');
-    if (names.length === 1) {
-        return names[0].charAt(0).toUpperCase();
-    }
-    
-    return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-}
-
-
-// Funzione per aggiornare le informazioni utente nell'header della dashboard
 function updateDashboardUserInfo() {
     const currentUser = getCurrentUser();
     const userInfoDiv = document.getElementById('user-info');
-    const mobileUserInfoDiv = document.getElementById('mobile-user-info');
     const userNameSpan = document.getElementById('user-name');
-    const mobileUserNameSpan = document.getElementById('mobile-user-name');
     const userLevelBadge = document.getElementById('user-level-badge');
-    const mobileUserLevelBadge = document.getElementById('mobile-user-level');
     const userAvatar = document.getElementById('user-avatar');
     
     if (currentUser) {
-        // Mostra le sezioni info utente
-        if (userInfoDiv) userInfoDiv.style.display = 'flex';
-        if (mobileUserInfoDiv) mobileUserInfoDiv.style.display = 'block';
+        userInfoDiv.style.display = 'flex';
+        userNameSpan.textContent = currentUser.fullName || currentUser.username;
         
-        // Imposta il nome (desktop e mobile)
-        if (userNameSpan) userNameSpan.textContent = currentUser.fullName || currentUser.username;
-        if (mobileUserNameSpan) mobileUserNameSpan.textContent = currentUser.fullName || currentUser.username;
+        userLevelBadge.textContent = currentUser.level.toUpperCase();
+        userLevelBadge.className = 'badge ' + getLevelBadgeClass(currentUser.level);
         
-        // Imposta il badge del livello con colori appropriati
-        const levelText = currentUser.level.toUpperCase();
-        const badgeClass = getLevelBadgeClass(currentUser.level);
-        
-        if (userLevelBadge) {
-            userLevelBadge.textContent = levelText;
-            userLevelBadge.className = 'badge ' + badgeClass;
-        }
-        
-        if (mobileUserLevelBadge) {
-            mobileUserLevelBadge.textContent = levelText;
-            mobileUserLevelBadge.className = 'badge ' + badgeClass;
-        }
-        
-        // Imposta l'avatar con iniziali (solo desktop)
-        if (userAvatar) {
-            const initials = getInitials(currentUser.fullName || currentUser.username);
-            userAvatar.textContent = initials;
-            userAvatar.style.backgroundColor = getAvatarColor(currentUser.level);
-        }
-        
+        userAvatar.textContent = getInitials(currentUser.fullName || currentUser.username);
+        userAvatar.style.backgroundColor = getAvatarColor(currentUser.level);
     } else {
-        // Nascondi le sezioni se non c'è utente
-        if (userInfoDiv) userInfoDiv.style.display = 'none';
-        if (mobileUserInfoDiv) mobileUserInfoDiv.style.display = 'none';
+        window.location.href = 'index.html';
     }
 }
 
-// Aggiorna le informazioni utente al caricamento della pagina
 document.addEventListener('DOMContentLoaded', function() {
     updateDashboardUserInfo();
-    if (typeof checkUserPermissions === 'function') {
-        checkUserPermissions(); // Se hai già questa funzione
-    }
+    loadData();
 });
-
-// Se hai già un event listener per il caricamento, aggiungi la chiamata lì
-window.addEventListener('load', function() {
-    updateDashboardUserInfo();
-});                
-                        
-        
-
-  loadData();
 </script>
 </body>
 </html>

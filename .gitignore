@@ -1,0 +1,9 @@
+# PHP
+vendor/
+composer.lock
+*.log
+
+# Project specific
+data/*.tmp
+shareddocs/*
+!shareddocs/.gitkeep
