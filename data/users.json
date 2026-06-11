@@ -1,0 +1,42 @@
+[
+    {
+        "id": "user_6841a0a4cb488",
+        "username": "ademontis",
+        "email": "ademontis@hotmail.com",
+        "fullName": "alessandro demontis",
+        "password": "30011974",
+        "created_at": "2025-06-05 13:50:28",
+        "is_active": true,
+        "level": "admin"
+    },
+    {
+        "id": "user_6877a0b2cb458",
+        "username": "Mario78",
+        "email": "mario.rossi@hotmail.it",
+        "fullName": "Mario Rossi",
+        "password": "30011978",
+        "created_at": "2025-06-08 13:40:4",
+        "is_active": true,
+        "level": "admin"
+    },
+    {
+        "id": "user_6841d7feccc69",
+        "username": "keropi",
+        "email": "keropiboy@yahoo.com",
+        "fullName": "alexander",
+        "password": "lallero",
+        "created_at": "2025-06-05 17:46:38",
+        "is_active": true,
+        "level": "user"
+    },
+    {
+        "id": "user_6847f4ceb1878",
+        "username": "mammeta",
+        "email": "gozer@inwind.it",
+        "fullName": "io",
+        "password": "mannaia",
+        "created_at": "2025-06-10 09:03:10",
+        "is_active": true,
+        "level": "user"
+    }
+]

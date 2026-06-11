@@ -1,0 +1,47 @@
+[
+    {
+        "id": "issue_6840c0ef0507f",
+        "taskTitle": "Caricamento Galleria in Webflow",
+        "description": "imagiin a bassa risoluzione, fornire immagii migliori",
+        "status": "escalated",
+        "created_at": "2025-06-04 21:55:59",
+        "escalated_at": "2025-07-04 07:55:44",
+        "resolved_at": "2025-07-04 07:18:48"
+    },
+    {
+        "id": "issue_6840c6227802d",
+        "taskTitle": "Prototipazione Homepage",
+        "description": "Figma ha la licenza scaduta, usato WPS",
+        "status": "solved",
+        "created_at": "2025-06-04 22:18:10",
+        "escalated_at": "2025-06-10 11:23:54",
+        "resolved_at": "2025-06-10 11:26:27"
+    },
+    {
+        "id": "issue_6847f51415658",
+        "taskTitle": "caricamento in test",
+        "description": "efsaf",
+        "status": "solved",
+        "created_at": "2025-06-10 09:04:20",
+        "escalated_at": "2025-06-10 11:25:01",
+        "resolved_at": "2025-07-04 07:18:56"
+    },
+    {
+        "id": "issue_6847f55215d3c",
+        "taskTitle": "Creazione struttura cartelle",
+        "description": "ehyrhtrtyh",
+        "status": "escalated",
+        "created_at": "2025-06-10 09:05:22",
+        "escalated_at": "2025-07-04 07:55:47",
+        "resolved_at": "2025-07-04 07:18:53"
+    },
+    {
+        "id": "issue_68a1705f5ce9c",
+        "taskTitle": "Creazione struttura cartelle",
+        "description": "struttura cartelle incoerente con standard",
+        "status": "solved",
+        "created_at": "2025-08-17 06:02:07",
+        "escalated_at": "2025-08-17 06:02:37",
+        "resolved_at": "2025-08-17 06:03:15"
+    }
+]
