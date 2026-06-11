@@ -14,7 +14,6 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }          
           
-    body, html { margin: 0; height: 100%; }
     .container-fluid {
       margin-top: 10px;
       display: flex;
@@ -28,11 +27,9 @@
       margin-bottom: 20px;
       padding: 20px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      position: relative;
     }          
           
-    h1 small a {
-      font-size: 0.6em;
-    }
     .controls {
       display: flex;
       gap: 15px;
@@ -89,8 +86,7 @@
       border-right: 1px solid #bbb;
     }
 .day-cell {
-  /* Altezza aumentata per dare più spazio */
-  height: 38px;  /* da 32px a 38 */
+  height: 38px;
   width: 38px;      
   position: relative;
   background: #fff;
@@ -104,10 +100,8 @@
       border-left: none;
     }
 
-    /* Barra task */
     .task-bar {
       position: absolute;
-      /* top: 6px; */
       left: 0;
       height: 22px;
       border-radius: 5px;
@@ -135,7 +129,7 @@
     }
             
     .task-bar > div {
-    line-height: 11px; /* Metà dell'altezza della barra */
+    line-height: 11px;
     margin: 0;
     padding: 0;
 }        
@@ -151,13 +145,6 @@
     padding: 4px 8px;
 }
 
-.task-card small {
-    display: block;
-    margin-top: 10px;
-    color: #555;
-}
-            
-            
 .user-info {
     transition: all 0.3s ease;
 }
@@ -172,10 +159,7 @@
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
-            
-          
 
-    /* Scrollbar (opzionale) */
     .gantt-wrapper::-webkit-scrollbar {
       height: 10px;
     }
@@ -190,7 +174,7 @@
 <div class="container-fluid mt-3">
   <div class="main-header">
           
-       <div id="user-info" class="position-absolute top-0 end-0 d-flex align-items-center me-3 mb-3" style="display: none;">
+    <div id="user-info" class="position-absolute top-0 end-0 d-flex align-items-center me-3 mb-3" style="display: none;">
         <div class="me-3 text-end">
             <div class="fw-bold text-dark" id="user-name">Nome Utente</div>
             <div class="small">
@@ -204,8 +188,6 @@
         </div>
     </div>        
     <br>       
-          
-          
           
     <div class="d-flex justify-content-between align-items-center">
       <div>
@@ -233,7 +215,6 @@
   </div>
 
   <hr/>
-<!-- Sezione aggiunta task - visibile solo agli admin -->
 <div id="admin-task-section" style="display: none;">
     <h4 class="mt-4 mb-3">Aggiungi nuovo task</h4>
     <div class="card shadow-sm border-info mb-4">
@@ -264,7 +245,6 @@
         </div>
     </div>
 </div>
-<!-- Messaggio per utenti non admin (opzionale) -->
 <div id="user-restriction-message" style="display: none;">
     <div class="alert alert-info" role="alert">
         <i class="fas fa-info-circle me-2"></i>
@@ -274,7 +254,7 @@
         
 </div>
 
-<!-- Modal modifica identico -->
+<!-- Edit Modal -->
 <div class="modal fade" id="ganttEditModal" tabindex="-1" aria-labelledby="ganttEditModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <form class="modal-content" id="gantt-edit-form" aria-label="Modulo modifica task gantt">
@@ -310,6 +290,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="auth.js"></script>
 <script>
 
 // Variabili globali
@@ -321,29 +302,15 @@ const nextMonthBtn = document.getElementById('next-month');
 const ganttEditModal = new bootstrap.Modal(document.getElementById('ganttEditModal'));
 
 let ganttTasks = [];
-let teams = [];  // Array di team {name, members: []}
+let teams = [];
 
 let currentYear, currentMonth;
 let daysInMonth;
 
-// Mappa colori per team
 let teamColors = {};
-
-function fetchJSON(data){
-  return fetch('api.php', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(data)
-  }).then(r => r.json());
-}
 
 function getDaysInMonth(year, month){
   return new Date(year, month+1, 0).getDate();
-}
-
-function dayIndex(dateStr){
-  let d = new Date(dateStr);
-  return d.getDate() - 1;
 }
 
 function diffDays(startStr, endStr){
@@ -357,7 +324,6 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Genera un colore coerente a partire dal nome del team (hash semplice)
 function colorFromName(name) {
   let hash = 0;
   for(let i = 0; i < name.length; i++){
@@ -367,14 +333,12 @@ function colorFromName(name) {
   return '#' + '00000'.substring(0,6-c.length) + c;
 }
 
-// Controlla se data è sabato o domenica
 function isWeekend(year, month, day){
   const dt = new Date(year, month, day);
-  const wd = dt.getDay(); // giorno settimana 0=dom
+  const wd = dt.getDay();
   return (wd === 0 || wd === 6);
 }
 
-// Ritorna vero se il task intersecta il mese attuale
 function taskInMonth(task, year, month){
   const start = new Date(task.start);
   const end = new Date(task.end);
@@ -383,24 +347,19 @@ function taskInMonth(task, year, month){
   return (start <= endOfMonth && end >= startOfMonth);
 }
 
-// Rimuove tutte le barre task da DOM
 function clearBars(){
   const bars = ganttWrapper.querySelectorAll('.task-bar');
   bars.forEach(b => b.remove());
 }
 
-// Costruisce griglia + barre
 function renderGanttGrid(){
   daysInMonth = getDaysInMonth(currentYear, currentMonth);
   document.documentElement.style.setProperty('--days-in-month', daysInMonth);
   monthLabel.textContent = new Date(currentYear, currentMonth).toLocaleString('it-IT', {month:'long', year:'numeric'});
 
-  // Crea griglia header e celle:
-
   let html = '';
-  // Header row
   html += `<div class="gantt-header">`;
-  html += `<div class="cell"></div>`; // spazio nome task
+  html += `<div class="cell"></div>`;
 
   for(let d = 1; d <= daysInMonth; d++) {
     const weekend = isWeekend(currentYear, currentMonth, d);
@@ -408,70 +367,57 @@ function renderGanttGrid(){
   }
   html += `</div>`;
 
-  // Righe task
   ganttTasks.forEach(task => {
-    if(!taskInMonth(task, currentYear, currentMonth)) return; // Skip fuori mese
+    if(!taskInMonth(task, currentYear, currentMonth)) return;
 
     html += `<div class="gantt-row" role="row">`;
-
     html += `<div class="task-name-cell" role="rowheader" tabindex="0" aria-label="Task: ${escapeHtml(task.title)}">${escapeHtml(task.title)}</div>`;
 
     for(let d=1; d<=daysInMonth; d++){
       const weekend = isWeekend(currentYear, currentMonth, d);
       html += `<div class="day-cell${weekend?' weekend':''}" role="gridcell"></div>`;
     }
-
     html += `</div>`;
   });
 
   ganttGrid.innerHTML = html;
-
   clearBars();
 
-// Genera mappa colori per team attuali (evito duplicati)
-teamColors = {};
-teams.forEach(team=>{
-  teamColors[team.name] = colorFromName(team.name);
-});
+  teamColors = {};
+  teams.forEach(team=>{
+    teamColors[team.name] = colorFromName(team.name);
+  });
 
-// CORREZIONE: usa un contatore per task visibili
-let visibleTaskIndex = 0; // <-- Aggiungi questo
+  let visibleTaskIndex = 0;
+  
+  ganttTasks.forEach((task, idx)=>{
+    if(!taskInMonth(task, currentYear, currentMonth)) return;
 
-ganttTasks.forEach((task, idx)=>{
-  if(!taskInMonth(task, currentYear, currentMonth)) return;
+    const startDate = new Date(task.start);
+    const endDate = new Date(task.end);
 
-  const startDate = new Date(task.start);
-  const endDate = new Date(task.end);
-
-    // Calcola posizione e dimensioni
     let startOffset = 0, lengthDays = 0;
 
     if(startDate.getFullYear()===currentYear && startDate.getMonth()===currentMonth){
-      // Task inizia questo mese
       startOffset = startDate.getDate() - 1;
       lengthDays = diffDays(task.start, task.end);
     } else if (startDate < new Date(currentYear, currentMonth, 1)){
-      // Task inizia prima di questo mese, barra parte da 0
       startOffset = 0;
-      // durata = dal primo giorno mese a fine task o fine mese (minore)
       let taskEndDate = endDate;
       let monthLastDay = new Date(currentYear, currentMonth, daysInMonth);
       let diffEnd = Math.min(taskEndDate, monthLastDay);
       lengthDays = Math.floor((diffEnd - new Date(currentYear, currentMonth, 1))/(1000*60*60*24)) + 1;
     }
 
-    // Limita la barra alla fine del mese
     if(startOffset + lengthDays > daysInMonth) {
       lengthDays = daysInMonth - startOffset;
     }
 
-    // CORREZIONE POSIZIONAMENTO: usa dimensioni coerenti con CSS
-    const topPx = 31 + visibleTaskIndex * 38 + 10;  // <-- Cambia qui
-  const leftPx = 160 + startOffset * 40;
-  const widthPx = lengthDays * 40 - 4;
-  const barHeight = '32px'; // Forza altezza fissa   
+    const topPx = 31 + visibleTaskIndex * 38 + 10;
+    const leftPx = 160 + startOffset * 40;
+    const widthPx = lengthDays * 40 - 4;
+    const barHeight = '32px';
 
-    // Crea barra
     const bar = document.createElement('div');
     bar.className = 'task-bar';
     bar.style.top = `${topPx}px`;
@@ -484,16 +430,16 @@ ganttTasks.forEach((task, idx)=>{
     bar.setAttribute('aria-label',`Task: ${task.title} dal ${task.start} al ${task.end}, Team: ${task.team}`);
 
     bar.dataset.index = idx;
-
     bar.innerHTML = `<div>${escapeHtml(task.title)}</div><div class="team-label">${escapeHtml(task.team)}</div>`;
 
     ganttWrapper.appendChild(bar);
 
-    // Eventi edit
-    bar.addEventListener('click', () => openGanttEditModal(idx));
-    bar.addEventListener('keypress', e => {if(e.key==='Enter') openGanttEditModal(idx);});
+    if (isAdminOrManager()) {
+        bar.addEventListener('click', () => openGanttEditModal(idx));
+        bar.addEventListener('keypress', e => {if(e.key==='Enter') openGanttEditModal(idx);});
+    }
         
-    visibleTaskIndex++; // <-- QUI     
+    visibleTaskIndex++;
   });
 }
 
@@ -509,14 +455,12 @@ function openGanttEditModal(idx){
 }
 
 async function loadTeamsAndTasks(){
-  // carica teams e popola
-  const teamsRes = await fetchJSON({action: 'getTeamsWithMembers'});
+  const teamsRes = await fetchWithAuth({action: 'getTeamsWithMembers'});
   if(teamsRes.success){
     teams = teamsRes.data;
     populateTeamSelectors();
   }
-  // carica tasks
-  const tasksRes = await fetchJSON({action: 'getGantt'});
+  const tasksRes = await fetchWithAuth({action: 'getGantt'});
   if(tasksRes.success){
     ganttTasks = tasksRes.data;
   }
@@ -536,10 +480,8 @@ function populateTeamSelectors(){
   });
 }
 
-// Aggiunta task
 document.getElementById('gantt-form').addEventListener('submit', async e=>{
   e.preventDefault();
-
   const title = document.getElementById('gantt-title').value.trim();
   const start = document.getElementById('gantt-start').value;
   const end = document.getElementById('gantt-end').value;
@@ -548,7 +490,7 @@ document.getElementById('gantt-form').addEventListener('submit', async e=>{
   if(!title || !start || !end || !team) return alert('Compila tutti i campi');
   if(end < start) return alert('La data di fine non può essere precedente alla data di inizio');
 
-  const res = await fetchJSON({action:'addGantt', title, start, end, team});
+  const res = await fetchWithAuth({action:'addGantt', title, start, end, team});
   if(res.success){
     ganttTasks = res.data;
     renderGanttGrid();
@@ -557,10 +499,8 @@ document.getElementById('gantt-form').addEventListener('submit', async e=>{
   } else alert(res.message || 'Errore aggiungendo task');
 });
 
-// Salvataggio modifica task
 document.getElementById('gantt-edit-form').addEventListener('submit', async e=>{
   e.preventDefault();
-
   const idx = parseInt(document.getElementById('gantt-edit-index').value);
   const title = document.getElementById('gantt-edit-title').value.trim();
   const start = document.getElementById('gantt-edit-start').value;
@@ -570,7 +510,7 @@ document.getElementById('gantt-edit-form').addEventListener('submit', async e=>{
   if(!title || !start || !end || !team) return alert('Compila tutti i campi');
   if(end < start) return alert('La data di fine non può essere precedente alla data di inizio');
 
-  const res = await fetchJSON({action:'editGantt', index: idx, title, start, end, team});
+  const res = await fetchWithAuth({action:'editGantt', index: idx, title, start, end, team});
   if(res.success){
     ganttTasks = res.data;
     renderGanttGrid();
@@ -578,7 +518,6 @@ document.getElementById('gantt-edit-form').addEventListener('submit', async e=>{
   } else alert(res.message || 'Errore modificando task');
 });
 
-// Bottoni mese precedente/successivo
 prevMonthBtn.addEventListener('click', () => {
   currentMonth--;
   if(currentMonth < 0){
@@ -597,12 +536,9 @@ nextMonthBtn.addEventListener('click', () => {
   renderGanttGrid();
 });
 
-// Funzione per controllare i permessi utente
 function checkUserPermissions() {
     const currentUser = getCurrentUser();
-    
     if (!currentUser) {
-        // Se non c'è utente loggato, reindirizza al login
         window.location.href = 'index.html';
         return;
     }
@@ -610,190 +546,45 @@ function checkUserPermissions() {
     const adminTaskSection = document.getElementById('admin-task-section');
     const userRestrictionMessage = document.getElementById('user-restriction-message');
     
-    if (currentUser.level === 'admin' || currentUser.level === 'manager') {
-        // Mostra sezione admin
+    if (isAdminOrManager()) {
         adminTaskSection.style.display = 'block';
         userRestrictionMessage.style.display = 'none';
     } else {
-        // Nascondi sezione admin e mostra messaggio (opzionale)
         adminTaskSection.style.display = 'none';
-        userRestrictionMessage.style.display = 'block'; // Decommenta se vuoi mostrare il messaggio
+        userRestrictionMessage.style.display = 'block';
     }
 }
 
-// Funzione helper per ottenere l'utente corrente
-function getCurrentUser() {
-    try {
-        const userData = localStorage.getItem('currentUser');
-        return userData ? JSON.parse(userData) : null;
-    } catch (error) {
-        console.error('Errore nel parsing dei dati utente:', error);
-        return null;
-    }
-}
-
-// Funzione per verificare se l'utente è admin
-function isAdmin() {
-    const currentUser = getCurrentUser();
-    return currentUser && currentUser.level === 'admin';
-}
-
-// Funzione per verificare se l'utente è admin o manager
-function isAdminOrManager() {
-    const currentUser = getCurrentUser();
-    return currentUser && (currentUser.level === 'admin' || currentUser.level === 'manager');
-}
-
-// Esegui il controllo permessi al caricamento della pagina
-document.addEventListener('DOMContentLoaded', function() {
-    checkUserPermissions();
-});
-
-// Se hai già un event listener per il caricamento, aggiungi la chiamata lì
-window.addEventListener('load', function() {
-    checkUserPermissions();
-});        
-        
-        
-// Init con data attuale
-const now = new Date();
-currentYear = now.getFullYear();
-currentMonth = now.getMonth();
-        
-        
-// Funzione per aggiornare le informazioni utente nell'header
-function updateUserInfoInHeader() {
-    const currentUser = getCurrentUser();
-    const userInfoDiv = document.getElementById('user-info');
-    const userNameSpan = document.getElementById('user-name');
-    const userLevelBadge = document.getElementById('user-level-badge');
-    const userAvatar = document.getElementById('user-avatar');
-    
-    if (currentUser) {
-        // Mostra la sezione info utente
-        userInfoDiv.style.display = 'flex';
-        
-        // Imposta il nome
-        userNameSpan.textContent = currentUser.fullName || currentUser.username;
-        
-        // Imposta il badge del livello con colori appropriati
-        userLevelBadge.textContent = currentUser.level.toUpperCase();
-        userLevelBadge.className = 'badge ' + getLevelBadgeClass(currentUser.level);
-        
-        // Imposta l'avatar con iniziali
-        const initials = getInitials(currentUser.fullName || currentUser.username);
-        userAvatar.textContent = initials;
-        userAvatar.style.backgroundColor = getAvatarColor(currentUser.level);
-        
-    } else {
-        // Nascondi la sezione se non c'è utente
-        userInfoDiv.style.display = 'none';
-    }
-}
-
-// Funzione per ottenere la classe CSS del badge in base al livello
-function getLevelBadgeClass(level) {
-    switch(level) {
-        case 'admin':
-            return 'bg-danger text-white'; // Rosso per admin
-        case 'manager':
-            return 'bg-warning text-dark'; // Giallo per manager
-        case 'user':
-        default:
-            return 'bg-secondary text-white'; // Grigio per user
-    }
-}
-
-// Funzione per ottenere il colore dell'avatar in base al livello
-function getAvatarColor(level) {
-    switch(level) {
-        case 'admin':
-            return '#dc3545'; // Rosso per admin
-        case 'manager':
-            return '#ffc107'; // Giallo per manager
-        case 'user':
-        default:
-            return '#007bff'; // Blu per user
-    }
-}
-
-// Funzione per estrarre le iniziali dal nome
-function getInitials(fullName) {
-    if (!fullName) return 'U';
-    
-    const names = fullName.trim().split(' ');
-    if (names.length === 1) {
-        return names[0].charAt(0).toUpperCase();
-    }
-    
-    return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-}
-
-
-// Funzione per aggiornare le informazioni utente nell'header della dashboard
 function updateDashboardUserInfo() {
     const currentUser = getCurrentUser();
     const userInfoDiv = document.getElementById('user-info');
-    const mobileUserInfoDiv = document.getElementById('mobile-user-info');
     const userNameSpan = document.getElementById('user-name');
-    const mobileUserNameSpan = document.getElementById('mobile-user-name');
     const userLevelBadge = document.getElementById('user-level-badge');
-    const mobileUserLevelBadge = document.getElementById('mobile-user-level');
     const userAvatar = document.getElementById('user-avatar');
     
     if (currentUser) {
-        // Mostra le sezioni info utente
-        if (userInfoDiv) userInfoDiv.style.display = 'flex';
-        if (mobileUserInfoDiv) mobileUserInfoDiv.style.display = 'block';
-        
-        // Imposta il nome (desktop e mobile)
-        if (userNameSpan) userNameSpan.textContent = currentUser.fullName || currentUser.username;
-        if (mobileUserNameSpan) mobileUserNameSpan.textContent = currentUser.fullName || currentUser.username;
-        
-        // Imposta il badge del livello con colori appropriati
-        const levelText = currentUser.level.toUpperCase();
-        const badgeClass = getLevelBadgeClass(currentUser.level);
-        
-        if (userLevelBadge) {
-            userLevelBadge.textContent = levelText;
-            userLevelBadge.className = 'badge ' + badgeClass;
-        }
-        
-        if (mobileUserLevelBadge) {
-            mobileUserLevelBadge.textContent = levelText;
-            mobileUserLevelBadge.className = 'badge ' + badgeClass;
-        }
-        
-        // Imposta l'avatar con iniziali (solo desktop)
-        if (userAvatar) {
-            const initials = getInitials(currentUser.fullName || currentUser.username);
-            userAvatar.textContent = initials;
-            userAvatar.style.backgroundColor = getAvatarColor(currentUser.level);
-        }
-        
+        userInfoDiv.style.display = 'flex';
+        userNameSpan.textContent = currentUser.fullName || currentUser.username;
+        userLevelBadge.textContent = currentUser.level.toUpperCase();
+        userLevelBadge.className = 'badge ' + getLevelBadgeClass(currentUser.level);
+        userAvatar.textContent = getInitials(currentUser.fullName || currentUser.username);
+        userAvatar.style.backgroundColor = getAvatarColor(currentUser.level);
     } else {
-        // Nascondi le sezioni se non c'è utente
-        if (userInfoDiv) userInfoDiv.style.display = 'none';
-        if (mobileUserInfoDiv) mobileUserInfoDiv.style.display = 'none';
+        window.location.href = 'index.html';
     }
 }
 
-// Aggiorna le informazioni utente al caricamento della pagina
 document.addEventListener('DOMContentLoaded', function() {
     updateDashboardUserInfo();
-    if (typeof checkUserPermissions === 'function') {
-        checkUserPermissions(); // Se hai già questa funzione
-    }
+    checkUserPermissions();
+    
+    const now = new Date();
+    currentYear = now.getFullYear();
+    currentMonth = now.getMonth();
+    
+    loadTeamsAndTasks();
 });
 
-// Se hai già un event listener per il caricamento, aggiungi la chiamata lì
-window.addEventListener('load', function() {
-    updateDashboardUserInfo();
-});                
-                        
-
-loadTeamsAndTasks();
 </script>
-
 </body>
 </html>
