@@ -79,3 +79,13 @@ async function fetchWithAuth(data) {
     
     return result;
 }
+
+async function logout() {
+    try {
+        await fetchWithAuth({action: 'logout'});
+    } catch (e) {
+        console.error('Error during API logout:', e);
+    }
+    localStorage.removeItem('currentUser');
+    window.location.href = 'index.html';
+}

@@ -4,10 +4,12 @@
         "username": "ademontis",
         "email": "ademontis@hotmail.com",
         "fullName": "alessandro demontis",
-        "password": "30011974",
+        "password": "$2y$10$TKN1.Xr\/CamLVZIlO\/qnLOQUOaRgNOv0aSkbpT2nAe73V7PrXVuRe",
         "created_at": "2025-06-05 13:50:28",
         "is_active": true,
-        "level": "admin"
+        "level": "admin",
+        "token": "c9b0467b64a8a952ee53b8100a4ef6f40a7ef9fd2bcf3fcf02797af0df84181d",
+        "last_login": "2026-06-11 12:00:30"
     },
     {
         "id": "user_6877a0b2cb458",
@@ -27,7 +29,9 @@
         "password": "lallero",
         "created_at": "2025-06-05 17:46:38",
         "is_active": true,
-        "level": "user"
+        "level": "user",
+        "token": "",
+        "last_login": "2026-06-11 11:58:50"
     },
     {
         "id": "user_6847f4ceb1878",

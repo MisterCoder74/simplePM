@@ -1115,7 +1115,28 @@ case 'login':
         }
     }
     
-    if (!$foundUser || $password != $foundUser['password']) {
+    if (!$foundUser) {
+        echo json_encode(['success'=>false, 'message'=>'Credenziali non valide']);
+        break;
+    }
+    
+    $passwordCorrect = false;
+    // Supporta sia password hashate che in chiaro (per compatibilità durante la migrazione)
+    if (verifyPassword($password, $foundUser['password'])) {
+        $passwordCorrect = true;
+    } elseif ($password === $foundUser['password']) {
+        $passwordCorrect = true;
+        // Migra automaticamente la password in chiaro all'hash al primo login
+        foreach($users as $index => $u) {
+            if ($u['id'] === $foundUser['id']) {
+                $users[$index]['password'] = hashPassword($password);
+                break;
+            }
+        }
+        writeUsers($users);
+    }
+    
+    if (!$passwordCorrect) {
         echo json_encode(['success'=>false, 'message'=>'Credenziali non valide']);
         break;
     }
@@ -1138,6 +1159,21 @@ case 'login':
     $foundUser['token'] = $token;
     
     echo json_encode(['success'=>true, 'message'=>'Login effettuato', 'user'=>$foundUser]);
+    break;
+
+case 'logout':
+    $user = getAuthenticatedUser($input);
+    if ($user) {
+        $users = readUsers();
+        foreach($users as $index => $u) {
+            if ($u['id'] === $user['id']) {
+                $users[$index]['token'] = '';
+                break;
+            }
+        }
+        writeUsers($users);
+    }
+    echo json_encode(['success'=>true, 'message'=>'Logout effettuato']);
     break;
 
 case 'getUsers':
@@ -1389,6 +1425,20 @@ case 'getSetup':
     requireLevel('admin', $input);
     $setup = loadData(SETUP_FILE);
     echo json_encode(['success'=>true, 'data'=>$setup]);
+    break;
+
+case 'saveSetup':
+    requireLevel('admin', $input);
+    $newSetup = $input['setup'] ?? null;
+    if (!$newSetup) {
+        echo json_encode(['success'=>false, 'message'=>'Dati non validi']);
+        break;
+    }
+    if (saveData(SETUP_FILE, $newSetup)) {
+        echo json_encode(['success'=>true, 'message'=>'Impostazioni salvate']);
+    } else {
+        echo json_encode(['success'=>false, 'message'=>'Errore nel salvataggio']);
+    }
     break;
                 
 default:

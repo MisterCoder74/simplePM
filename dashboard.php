@@ -266,7 +266,7 @@
 
       <!-- Impostazioni (solo Admin) -->
       <div class="col-lg-3 col-md-6" id="settings-for-admins" style="display: none;">
-        <div class="card border-0 shadow-sm text-center h-100">
+        <div class="card border-0 shadow-sm text-center h-100" onclick="window.location.href='settings.php'" style="cursor: pointer;">
           <div class="card-body d-flex flex-column justify-content-center p-4">
             <div class="card-icon text-dark">
               <i class="fas fa-cog"></i>
@@ -283,7 +283,7 @@
         </div>
       </div>
     </div>
-	           
+               
     <!-- Stats Section -->
     <div class="row mt-5">
       <div class="col-12">
@@ -410,11 +410,6 @@
             if (userInfoDiv) userInfoDiv.style.display = 'none';
             if (mobileUserInfoDiv) mobileUserInfoDiv.style.display = 'none';
         }
-    }
-
-    function logout() {
-        localStorage.removeItem('currentUser');
-        window.location.href = 'index.html';
     }
 
     document.addEventListener('DOMContentLoaded', function() {
